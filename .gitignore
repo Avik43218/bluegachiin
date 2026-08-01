@@ -5,6 +5,6 @@
 compile.sh
 
 # Headers
-headers/stb_image.h
-headers/stb_image_write.h
+include/stb_image.h
+include/stb_image_write.h
 
