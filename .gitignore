@@ -8,3 +8,7 @@ compile.sh
 include/stb_image.h
 include/stb_image_write.h
 
+# Objects & Binaries
+bin/
+build/
+
