@@ -1,0 +1,7 @@
+# Scripts
+compile.sh
+
+# Headers
+headers/stbi_image.h
+headers/stbi_image_write.h
+
