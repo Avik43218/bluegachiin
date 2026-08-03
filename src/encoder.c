@@ -1,8 +1,8 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stb_image_write.h"
+#include "include/stb_image_write.h"
 
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include "include/stb_image.h"
 
 #include <fec.h>
 #include <math.h>
@@ -10,11 +10,11 @@
 #include <stdlib.h>
 
 // CONFIG CONSTANTS
-#define RS_ENC_PAYLOAD_SIZE 128
+#define RS_ENC_PAYLOAD_SIZE 96
 #define PAYLOAD_SIZE 64
-#define PARITY_SIZE 64
+#define PARITY_SIZE 32
 #define CHIP_RATE 16
-#define ALPHA 5.0
+#define ALPHA 25.0
 
 
 void init_dsss(unsigned int secret_key) {
@@ -76,7 +76,7 @@ void inv_haar_1d(double *data, int len) {
 	free(temp);
 }
 
-void rs_dsss(double *data, unsigned char payload[PAYLOAD_SIZE], int width, unsigned int secret_key) {
+void encode_rs_dsss(double *data, unsigned char payload[PAYLOAD_SIZE], int width, unsigned int secret_key) {
 	
 	unsigned char encoded_payload[RS_ENC_PAYLOAD_SIZE];
 	unsigned char parity[PARITY_SIZE];
@@ -101,7 +101,7 @@ void rs_dsss(double *data, unsigned char payload[PAYLOAD_SIZE], int width, unsig
 
 			for (int i = 0; i < CHIP_RATE; i++) {
 				int pn = get_pn_chip();
-				data[start_y * width + start_x] += (ALPHA * polar_bit * pn);
+				data[start_y * width + start_x] = (ALPHA * polar_bit * pn);
 				start_x++;
 
 				if (start_x >= width) {
@@ -125,10 +125,13 @@ int main(int argc, char *argv[]) {
 	char *image_title = argv[1];
 	unsigned char *payload = (unsigned char *)argv[2];
 	unsigned int secret_key = (unsigned int)strtoul(argv[3], NULL, 10);
-
+	
+	/*
 	if (strlen((const char *)payload) != PAYLOAD_SIZE) {
 		printf("Error: PAYLOAD_SIZE should be 64 bytes\n");
+		exit(1);
 	}
+	*/
 
 	int new_len = strlen(image_title) + 3;
 	char *new_title = (char *)malloc(new_len);
@@ -173,7 +176,16 @@ int main(int argc, char *argv[]) {
 	free(col);
 
 	// Encode the RS payload using DSSS
-	rs_dsss(blue, payload, width, secret_key);
+	
+	unsigned char clean_payload[PAYLOAD_SIZE] = {0};
+	int arg_len = strlen(argv[2]);
+
+	if (arg_len > PAYLOAD_SIZE)
+		arg_len = PAYLOAD_SIZE;
+
+	memcpy(clean_payload, argv[2], arg_len);
+
+	encode_rs_dsss(blue, clean_payload, width, secret_key);
 
 	// Apply Inverse Haar on the columns
 	double *col_inv = (double *)malloc(height * sizeof(double));
