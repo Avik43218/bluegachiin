@@ -120,7 +120,7 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	// Initialise variables
+	// Initialize variables
 	int width, height, channels;
 	char *image_title = argv[1];
 	unsigned char *payload = (unsigned char *)argv[2];
