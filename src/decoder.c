@@ -1,5 +1,5 @@
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stb_image_write.h"
+#define STB_IMAGE_IMPLEMENTATION
+#include "include/stb_image.h"
 
 #include <fec.h>
 #include <math.h>
@@ -7,12 +7,19 @@
 #include <stdlib.h>
 
 // CONFIG CONSTANTS
-#define RS_ENC_PAYLOAD_SIZE 128
+#define RS_ENC_PAYLOAD_SIZE 96
 #define PAYLOAD_SIZE 64
-#define PARITY_SIZE 64
+#define PARITY_SIZE 32
 #define CHIP_RATE 16
-#define ALPHA 5.0
 
+
+void init_dsss(unsigned int secret_key) {
+	srand(secret_key);
+}
+
+int get_pn_chip() {
+	return (rand() % 2 == 0) ? 1 : -1;
+}
 
 void haar_1d(double *data, int len) {
 
@@ -31,6 +38,60 @@ void haar_1d(double *data, int len) {
 	}
 
 	free(temp);
+}
+
+void decode_rs_dsss(double *data, char message[PAYLOAD_SIZE], int width, unsigned int secret_key) {
+
+	unsigned char extracted_payload[RS_ENC_PAYLOAD_SIZE];
+
+	int start_x = width / 2;
+	int start_y = 0;
+
+	init_dsss(secret_key);
+
+	for (int byte_idx = 0; byte_idx < RS_ENC_PAYLOAD_SIZE; byte_idx++) {
+		unsigned char current_byte = 0;
+
+		for (int bit_idx = 7; bit_idx >= 0; bit_idx--) {
+			double sum = 0.0;
+
+			for (int i = 0; i < CHIP_RATE; i++) {
+				int pn = get_pn_chip();
+				sum += (data[start_y * width + start_x] * (double)pn);
+				start_x++;
+
+				if (start_x >= width) {
+					start_x = width / 2;
+					start_y++;
+				}
+			}
+
+			if (sum > 0.0) {
+				current_byte |= (1 << bit_idx);
+			}
+
+		}
+
+		extracted_payload[byte_idx] = current_byte;
+	}
+
+	// Decode the RS payload
+	
+	int pad = 255 - (PARITY_SIZE + PAYLOAD_SIZE);
+
+	int errors_fixed = decode_rs_8(extracted_payload, NULL, 0, pad);
+
+	if (errors_fixed < 0) {
+		printf("Data could not be recovered!\n");
+	}
+	else {
+		printf("Successfully recovered %d errors!\n", errors_fixed);
+
+		memcpy(message, extracted_payload, PAYLOAD_SIZE);
+		message[PAYLOAD_SIZE] = '\0';
+
+		printf("Message successfully decoded!\n");
+	}
 }
 
 int main(int argc, char *argv[]) {
@@ -79,8 +140,14 @@ int main(int argc, char *argv[]) {
 	}
 
 	free(col);
+	
+	// Extract RS-DSSS payload and decode
+	char message[PAYLOAD_SIZE + 1];
+	decode_rs_dsss(blue, message, width, secret_key);
 
-	// DSSS Extraction & Decoding logic goes here
+	printf("Secret Message: %s\n", message);
+
+	free(blue);
 
 	return 0;
 }
