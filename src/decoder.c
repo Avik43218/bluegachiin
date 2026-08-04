@@ -1,16 +1,11 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-#include <fec.h>
-#include <math.h>
-#include <stdio.h>
+#include "bg_headers.h"
 #include <stdlib.h>
-
-// CONFIG CONSTANTS
-#define RS_ENC_PAYLOAD_SIZE 96
-#define PAYLOAD_SIZE 64
-#define PARITY_SIZE 32
-#define CHIP_RATE 16
+#include <stdio.h>
+#include <math.h>
+#include <fec.h>
 
 
 void init_dsss(unsigned int secret_key) {
