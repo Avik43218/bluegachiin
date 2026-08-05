@@ -1,33 +1,27 @@
 CC			:= gcc
-CFLAGS			:= -Wall -Wextra -std=c11 -Iinclude -I/usr/local/include -I/usr/include -MMD -MP
+CFLAGS			:= -Wall -Wextra -std=c11 -D_XOPEN_SOURCE=500 -Iinclude -I/usr/local/include -I/usr/include
 LDFLAGS			:= -L/usr/local/lib -L/usr/lib
-LDLIBS			:= -lfec -lm
+LDLIBS			:= -Wl,-Bstatic -lfec -Wl,-Bdynamic -lm
 
 SRC_DIR			:= src
-BUILD_DIR		:= build
 BIN_DIR			:= bin
 
-TARGET			:= $(BIN_DIR)/bg
+all:			$(BIN_DIR)/bg $(BIN_DIR)/encoder $(BIN_DIR)/decoder
 
-SRCS			:= $(wildcard $(SRC_DIR)/*.c)
-OBJS			:= $(SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
-DEPS			:= $(OBJS:.o=.d)
+$(BIN_DIR)/bg:		$(SRC_DIR)/main.c
+	@mkdir -p $(BIN_DIR)
+	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS) $(LDLIBS)
 
-all:			$(TARGET)
+$(BIN_DIR)/encoder:	$(SRC_DIR)/encoder.c
+	@mkdir -p $(BIN_DIR)
+	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS) $(LDLIBS)
 
-$(TARGET):		$(OBJS) | $(BIN_DIR)
-	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
-
-$(BUILD_DIR)/%.o:	$(SRC_DIR)/%.c | $(BUILD_DIR)
-	$(CC) $(CFLAGS) -c $< -o $@
-
-$(BUILD_DIR) $(BIN_DIR):
-	mkdir -p $@
-
--include $(DEPS)
+$(BIN_DIR)/decoder:	$(SRC_DIR)/decoder.c
+	@mkdir -p $(BIN_DIR)
+	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS) $(LDLIBS)
 
 clean:
-	rm -rf $(BUILD_DIR) $(BIN_DIR)
+	rm -rf $(BIN_DIR)
 
 .PHONY: all clean
 
