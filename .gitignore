@@ -8,8 +8,6 @@ algorithm/
 compile.sh
 
 # Headers
-include/stb_image.h
-include/stb_image_write.h
 
 # Generated artifacts
 assets/F_*.png
