@@ -3,7 +3,6 @@
 
 # Scripts
 compile.sh
-test.sh
 
 # Headers
 include/stb_image.h
