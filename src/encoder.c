@@ -117,7 +117,7 @@ int main(int argc, char *argv[]) {
 	// Initialize variables
 	int width, height, channels;
 	char *image_title = argv[1];
-	unsigned char *payload = (unsigned char *)argv[2];
+	// unsigned char *payload = (unsigned char *)argv[2];
 	unsigned int secret_key = (unsigned int)strtoul(argv[3], NULL, 10);
 	
 	/*
