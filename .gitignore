@@ -1,6 +1,9 @@
 # Config files
 .vscode/
 
+# Text files
+algorithm/
+
 # Scripts
 compile.sh
 
