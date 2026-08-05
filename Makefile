@@ -5,6 +5,7 @@ LDLIBS			:= -Wl,-Bstatic -lfec -Wl,-Bdynamic -lm
 
 SRC_DIR			:= src
 BIN_DIR			:= bin
+ASSET_DIR		:= assets
 
 all:			$(BIN_DIR)/bg $(BIN_DIR)/encoder $(BIN_DIR)/decoder
 
@@ -21,7 +22,7 @@ $(BIN_DIR)/decoder:	$(SRC_DIR)/decoder.c
 	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS) $(LDLIBS)
 
 clean:
-	rm -rf $(BIN_DIR)
+	rm -rf $(BIN_DIR) $(ASSET_DIR)/F_*.png
 
 .PHONY: all clean
 
