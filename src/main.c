@@ -8,7 +8,7 @@
 int main(int argc, char *argv[]) {
 
 	if (argc < 2) {
-		fprintf(stderr, "Usage: %s <encode|decode> [args...]\n", argv[0]);
+		fprintf(stderr, "Usage: %s --encode|--decode\n", argv[0]);
 		return 1;
 	}
 
@@ -30,13 +30,15 @@ int main(int argc, char *argv[]) {
 		}
 		exe_path[len] = '\0';
 
-		char *build_dir = dirname(exe_path);
+		char *bin_dir = dirname(exe_path);
 
 		if (strcmp(argv[1], "--encode") == 0) {
-			snprintf(target_bin, sizeof(target_bin), "%s/encoder", build_dir);
+			snprintf(target_bin, sizeof(target_bin), "%s/encoder", bin_dir);
+			// Branch logic goes here
 		}
 		else if (strcmp(argv[1], "--decode") == 0) {
-			snprintf(target_bin, sizeof(target_bin), "%s/decoder", build_dir);
+			snprintf(target_bin, sizeof(target_bin), "%s/decoder", bin_dir);
+			// And here too
 		}
 		else {
 			fprintf(stderr, "Unknown command: %s\n", argv[1]);
