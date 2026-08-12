@@ -9,6 +9,14 @@ typedef struct {
     FILE *file;
 } JpegMatrixState;
 
+typedef struct {
+    int comp;
+    int row;
+    int col;
+    int k;
+} DctCoord;
+
+// STEP 1
 JpegMatrixState extract_coefficients(const char *filename) {
 
     JpegMatrixState state;
@@ -27,4 +35,57 @@ JpegMatrixState extract_coefficients(const char *filename) {
     state.coeffs_array = jpeg_read_coefficients(&state.cinfo);
 
     return state;
+}
+
+// STEP 2
+void scatter(DctCoord *coord_list, int total_valid, unsigned int secret_key) {
+
+    srand(secret_key);
+    
+    for (int i = total_valid - 1; i > 0; i--) {
+        int j = rand() % (i + 1);
+
+        DctCoord temp = coord_list[i];
+        coord_list[i] = coord_list[j];
+        coord_list[j] = temp;
+    }
+}
+
+// STEP 3
+int extract_valid_coords(JpegMatrixState *state, DctCoord *coord_list) {
+
+    int valid_count = 0;
+
+    for (int comp = 0; comp < state->cinfo.num_components; comp++) {
+        jpeg_component_info *compptr = state->cinfo.comp_info + comp;
+
+        for (int row = 0; row < compptr->height_in_blocks; row++) {
+
+            JBLOCKARRAY buffer = (state->cinfo.mem->access_virt_barray)(
+                (j_common_ptr) &state->cinfo,
+                state->coeffs_array[comp],
+                row, 1, TRUE
+            );
+
+            for (int col = 0; col < compptr->width_in_blocks; col++) {
+                JCOEF *block = buffer[0][col];
+
+                for (int k = 1; k < 64; k++) {
+
+                    if (block[k] != 0) {
+                        coord_list[valid_count].comp = comp;
+                        coord_list[valid_count].col = col;
+                        coord_list[valid_count].row = row;
+                        coord_list[valid_count].k = k;
+
+                        valid_count++;
+                    }
+                }
+            }
+        }
+    }
+
+    printf("Scan complete! %d payload injection sites available!\n", valid_count);
+
+    return valid_count;
 }
