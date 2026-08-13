@@ -1,5 +1,5 @@
 CC			:= gcc
-CFLAGS			:= -Wall -Wextra -std=c11 -D_XOPEN_SOURCE=500 -Iinclude -I/usr/local/include -I/usr/include
+CFLAGS			:= -Wall -Wextra -O2 -std=c11 -D_XOPEN_SOURCE=500 -Iinclude -I/usr/local/include -I/usr/include
 LDFLAGS			:= -L/usr/local/lib -L/usr/lib
 LDLIBS			:= -Wl,-Bstatic -lfec -Wl,-Bdynamic -lm
 
