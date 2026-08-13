@@ -1,6 +1,6 @@
 CC			:= gcc
-CFLAGS			:= -Wall -Wextra -O2 -std=c11 -D_XOPEN_SOURCE=500 -Iinclude -I/usr/local/include -I/usr/include
-LDFLAGS			:= -L/usr/local/lib -L/usr/lib
+CFLAGS			:= -O2 -g --coverage -pg -Wall -Wextra -std=c11 -D_XOPEN_SOURCE=500 -Iinclude -I/usr/local/include -I/usr/include
+LDFLAGS			:= --coverage -pg -L/usr/local/lib -L/usr/lib
 LDLIBS			:= -Wl,-Bstatic -lfec -Wl,-Bdynamic -lm
 
 SRC_DIR			:= src
