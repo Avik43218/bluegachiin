@@ -7,7 +7,7 @@ SRC_DIR			:= src
 BIN_DIR			:= bin
 ASSET_DIR		:= assets
 
-all:			$(BIN_DIR)/bg $(BIN_DIR)/png-encoder $(BIN_DIR)/png-decoder
+all:			$(BIN_DIR)/bg $(BIN_DIR)/encoder $(BIN_DIR)/decoder
 
 $(BIN_DIR)/bg:		$(SRC_DIR)/main.c
 	@mkdir -p $(BIN_DIR)

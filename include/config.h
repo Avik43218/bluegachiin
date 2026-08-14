@@ -8,5 +8,7 @@
 #define CHIP_RATE 16
 #define ALPHA 25.0
 
+#define BUFFER_SIZE (PAYLOAD_SIZE + 1)
+
 #endif
 
