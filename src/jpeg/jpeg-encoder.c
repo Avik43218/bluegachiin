@@ -16,6 +16,22 @@ typedef struct {
     int k;
 } DctCoord;
 
+int get_bits(unsigned char *payload, int bit_idx) {
+
+    // Locating First Bit
+    int B1_idx = bit_idx / 8;
+    int b1_offset = 7 - (bit_idx % 8);
+    int b1 = (payload[B1_idx] >> b1_offset) & 1;
+
+    // Locating Second Bit
+    int nxt_bit_idx = bit_idx + 1;
+    int B2_idx = nxt_bit_idx / 8;
+    int B2_offset = 7 - (nxt_bit_idx % 8);
+    int b2 = (payload[B2_idx] >> B2_offset) & 1;
+
+    return (b1 << 1) | b2;
+}
+
 // STEP 1
 JpegMatrixState extract_coefficients(const char *filename) {
 
