@@ -7,7 +7,6 @@
 #include <math.h>
 #include <fec.h>
 
-
 void init_dsss(unsigned int secret_key) {
 	srand(secret_key);
 }
@@ -35,7 +34,7 @@ void haar_1d(double *data, int len) {
 	free(temp);
 }
 
-void decode_rs_dsss(double *data, char message[PAYLOAD_SIZE], int width, unsigned int secret_key) {
+void decode_rs_dsss(double *data, char message[BUFFER_SIZE], int width, unsigned int secret_key) {
 
 	unsigned char extracted_payload[RS_ENC_PAYLOAD_SIZE];
 
@@ -137,7 +136,7 @@ int main(int argc, char *argv[]) {
 	free(col);
 	
 	// Extract RS-DSSS payload and decode
-	char message[PAYLOAD_SIZE + 1];
+	char message[BUFFER_SIZE];
 	decode_rs_dsss(blue, message, width, secret_key);
 
 	printf("Secret Message: %s\n", message);
