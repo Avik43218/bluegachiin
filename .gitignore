@@ -4,6 +4,14 @@
 # Text files
 algorithm/
 
+# Coverage files
+bin/*.gcno
+bin/*.gcda
+bin/*.gcov
+
+# Profiling files
+gmon.out
+
 # Scripts
 compile.sh
 
