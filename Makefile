@@ -22,7 +22,7 @@ $(BIN_DIR)/decoder:	$(SRC_DIR)/png/png-decoder.c
 	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS) $(LDLIBS)
 
 clean:
-	rm -rf $(BIN_DIR) $(ASSET_DIR)/F_*.png
+	rm -rf $(BIN_DIR) $(ASSET_DIR)/F_*.png ./gmon.out
 
 .PHONY: all clean
 
