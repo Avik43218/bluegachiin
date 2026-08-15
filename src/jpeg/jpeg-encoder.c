@@ -1,6 +1,12 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <jpeglib.h>
+#include <stdlib.h>
+#include <fec.h>
+#include <string.h>
+
+// #include "bg_headers.h"
+#include "config.h"
+#include "config.h"
 
 typedef struct {
     struct jpeg_decompress_struct cinfo;
@@ -15,6 +21,17 @@ typedef struct {
     int col;
     int k;
 } DctCoord;
+
+void rs_encode_payload(unsigned char payload[PAYLOAD_SIZE], unsigned char rs_payload[RS_ENC_PAYLOAD_SIZE]) {
+
+    unsigned char parity[PARITY_SIZE];
+	int pad_value = 255 - (PARITY_SIZE + PAYLOAD_SIZE);
+
+    encode_rs_8(payload, parity, pad_value);
+
+    memcpy(rs_payload, payload, PAYLOAD_SIZE);
+    memcpy(rs_payload + PAYLOAD_SIZE, parity, PARITY_SIZE);
+}
 
 int get_bits(unsigned char *payload, int bit_idx) {
 
@@ -170,3 +187,72 @@ void inject_payload(JpegMatrixState *state, DctCoord *coord_list, int valid_coun
     printf("Payload successfully injected!\n");
 }
 
+int save_image(JpegMatrixState *state, const char *out_fname) {
+
+    struct jpeg_compress_struct cinfo_out;
+    struct jpeg_error_mgr jerr_out;
+
+    FILE *ofile = fopen(out_fname, "wb");
+    if (!ofile) {
+        printf("Error: Cannot create output image!\n");
+        return 0;
+    }
+
+    cinfo_out.err = jpeg_std_error(&jerr_out);
+    jpeg_create_compress(&cinfo_out);
+    jpeg_stdio_dest(&cinfo_out, ofile);
+
+    jpeg_copy_critical_parameters(&state->cinfo, &cinfo_out);
+    jpeg_write_coefficients(&cinfo_out, state->coeffs_array);
+
+    jpeg_finish_compress(&cinfo_out);
+    jpeg_destroy_compress(&cinfo_out);
+    fclose(ofile);
+
+    printf("Image saved to disk successfully!\n");
+    return 1;
+}
+
+int main(int argc, char *argv[]) {
+
+    if (argc != 4) {
+        fprintf(stderr, "Error: Usage: ./jpeg-encoder <IMAGE_NAME> <MESSAGE> <SECRET_KEY>\n");
+        return 1;
+    }
+
+    unsigned int secret_key = (unsigned int)strtoul(argv[4], NULL, 10);
+
+    unsigned char rs_paylod[RS_ENC_PAYLOAD_SIZE] = {0};
+    unsigned char clean_payload[PAYLOAD_SIZE] = {0};
+	int arg_len = strlen(argv[2]);
+
+	if (arg_len > PAYLOAD_SIZE)
+		arg_len = PAYLOAD_SIZE;
+
+	memcpy(clean_payload, argv[2], arg_len);
+
+    JpegMatrixState state = extract_coefficients(argv[1]);
+
+    int max_possible_coords = 0;
+    for (int comp = 0; comp < state.cinfo.num_components; comp++) {
+        jpeg_component_info *compptr = state.cinfo.comp_info + comp;
+        
+        int total_blocks = compptr->width_in_blocks * compptr->height_in_blocks;
+        max_possible_coords += (total_blocks * 63); // 63 valid AC indices per block
+    }
+
+    DctCoord *coord_list = (DctCoord *)malloc(max_possible_coords * sizeof(DctCoord));
+    int valid_count = extract_valid_coords(&state, coord_list);
+    scatter(coord_list, valid_count, secret_key);
+    inject_payload(&state, coord_list, valid_count, rs_paylod, RS_ENC_PAYLOAD_SIZE * 8);
+
+    save_image(&state, "stego.jpg");
+
+    jpeg_finish_decompress(&state.cinfo);
+    jpeg_destroy_decompress(&state.cinfo);
+    fclose(state.file);
+
+    free(coord_list);
+
+    return 0;
+}
