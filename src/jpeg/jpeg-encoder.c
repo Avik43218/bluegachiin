@@ -53,7 +53,7 @@ JpegMatrixState extract_coefficients(const char *filename) {
     return state;
 }
 
-// STEP 2
+// STEP 3
 void scatter(DctCoord *coord_list, int total_valid, unsigned int secret_key) {
 
     srand(secret_key);
@@ -67,7 +67,7 @@ void scatter(DctCoord *coord_list, int total_valid, unsigned int secret_key) {
     }
 }
 
-// STEP 3
+// STEP 2
 int extract_valid_coords(JpegMatrixState *state, DctCoord *coord_list) {
 
     int valid_count = 0;
@@ -105,3 +105,68 @@ int extract_valid_coords(JpegMatrixState *state, DctCoord *coord_list) {
 
     return valid_count;
 }
+
+void inject_payload(JpegMatrixState *state, DctCoord *coord_list, int valid_count, unsigned char *payload, int total_bits) {
+
+    int coord_idx = 0;
+    int payload_idx = 0;
+
+    DctCoord active[3];
+    int active_count = 0;
+
+    while (payload_idx < total_bits) {
+
+        while (active_count < 3 && coord_idx < valid_count) {
+            DctCoord c = coord_list[coord_idx++];
+
+            JBLOCKARRAY buf = (state->cinfo.mem->access_virt_barray)((j_common_ptr)&state->cinfo, state->coeffs_array[c.comp], c.row, 1, TRUE);
+            if (buf[0][c.col][c.k] != 0) {
+                active[active_count++] = c;
+            }
+        }
+
+        if (active_count < 3) {
+            printf("WARNING: Matrix capacity exhausted!\n");
+            break;
+        }
+
+        int m = get_bits(payload, payload_idx);
+        int b[3];
+        JCOEF *blocks[3];
+
+        for (int i = 0; i < 3; i++) {
+            JBLOCKARRAY buf = (state->cinfo.mem->access_virt_barray)((j_common_ptr)&state->cinfo, state->coeffs_array[active[i].comp], active[i].row, 1, TRUE);
+            blocks[i] = buf[0][active[i].col];
+            b[i] = abs(blocks[i][active[i].k]) & 1;
+        }
+
+        int syn = (b[0] * 1) ^ (b[1] * 2) ^ (b[2] * 3);
+        int target_idx = syn ^ m;
+
+        if (target_idx != 0) {
+
+            int target = target_idx - 1;
+            int k = active[target].k;
+
+            if (blocks[target][k] > 0)
+                blocks[target][k]--;
+            else
+                blocks[target][k]++;
+
+            if (blocks[target][k] == 0) {
+
+                for (int i = target; i < 2; i++) {
+                    active[i] = active[i + 1];
+                }
+                active_count--;
+                continue;
+            }
+        }
+
+        payload_idx += 2;
+        active_count = 0;
+    }
+
+    printf("Payload successfully injected!\n");
+}
+
