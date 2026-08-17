@@ -13,11 +13,15 @@ $(BIN_DIR)/bg:		$(SRC_DIR)/main.c
 	@mkdir -p $(BIN_DIR)
 	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS) $(LDLIBS)
 
-$(BIN_DIR)/encoder:	$(SRC_DIR)/png/png-encoder.c
+$(BIN_DIR)/pe:	$(SRC_DIR)/png/png-encoder.c
 	@mkdir -p $(BIN_DIR)
 	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS) $(LDLIBS)
 
-$(BIN_DIR)/decoder:	$(SRC_DIR)/png/png-decoder.c
+$(BIN_DIR)/pd:	$(SRC_DIR)/png/png-decoder.c
+	@mkdir -p $(BIN_DIR)
+	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS) $(LDLIBS)
+
+$(BIN_DIR)/je:	$(SRC_DIR)/jpeg/jpeg-decoder.c
 	@mkdir -p $(BIN_DIR)
 	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS) $(LDLIBS)
 
