@@ -33,11 +33,11 @@ int main(int argc, char *argv[]) {
 		char *bin_dir = dirname(exe_path);
 
 		if (strcmp(argv[1], "--encode") == 0) {
-			snprintf(target_bin, sizeof(target_bin), "%s/encoder", bin_dir);
+			snprintf(target_bin, sizeof(target_bin), "%s/pe", bin_dir);
 			// Branch logic goes here
 		}
 		else if (strcmp(argv[1], "--decode") == 0) {
-			snprintf(target_bin, sizeof(target_bin), "%s/decoder", bin_dir);
+			snprintf(target_bin, sizeof(target_bin), "%s/pd", bin_dir);
 			// And here too
 		}
 		else {
