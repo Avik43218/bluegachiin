@@ -6,7 +6,6 @@
 
 // #include "bg_headers.h"
 #include "config.h"
-#include "config.h"
 
 typedef struct {
     struct jpeg_decompress_struct cinfo;
