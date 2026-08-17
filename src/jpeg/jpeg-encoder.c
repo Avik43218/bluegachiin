@@ -21,6 +21,7 @@ typedef struct {
     int k;
 } DctCoord;
 
+// STEP 1
 void rs_encode_payload(unsigned char payload[PAYLOAD_SIZE], unsigned char rs_payload[RS_ENC_PAYLOAD_SIZE]) {
 
     unsigned char parity[PARITY_SIZE];
@@ -32,6 +33,7 @@ void rs_encode_payload(unsigned char payload[PAYLOAD_SIZE], unsigned char rs_pay
     memcpy(rs_payload + PAYLOAD_SIZE, parity, PARITY_SIZE);
 }
 
+// Utility function
 int get_bits(unsigned char *payload, int bit_idx) {
 
     // Locating First Bit
@@ -48,7 +50,7 @@ int get_bits(unsigned char *payload, int bit_idx) {
     return (b1 << 1) | b2;
 }
 
-// STEP 1
+// STEP 2
 JpegMatrixState extract_coefficients(const char *filename) {
 
     JpegMatrixState state;
@@ -69,7 +71,7 @@ JpegMatrixState extract_coefficients(const char *filename) {
     return state;
 }
 
-// STEP 3
+// STEP 4
 void scatter(DctCoord *coord_list, int total_valid, unsigned int secret_key) {
 
     srand(secret_key);
@@ -83,7 +85,7 @@ void scatter(DctCoord *coord_list, int total_valid, unsigned int secret_key) {
     }
 }
 
-// STEP 2
+// STEP 3
 int extract_valid_coords(JpegMatrixState *state, DctCoord *coord_list) {
 
     int valid_count = 0;
@@ -122,6 +124,7 @@ int extract_valid_coords(JpegMatrixState *state, DctCoord *coord_list) {
     return valid_count;
 }
 
+// STEP 5
 void inject_payload(JpegMatrixState *state, DctCoord *coord_list, int valid_count, unsigned char *payload, int total_bits) {
 
     int coord_idx = 0;
@@ -186,6 +189,7 @@ void inject_payload(JpegMatrixState *state, DctCoord *coord_list, int valid_coun
     printf("Payload successfully injected!\n");
 }
 
+// STEP 6
 int save_image(JpegMatrixState *state, const char *out_fname) {
 
     struct jpeg_compress_struct cinfo_out;
@@ -219,6 +223,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    // Initialize variables
     unsigned int secret_key = (unsigned int)strtoul(argv[4], NULL, 10);
 
     unsigned char rs_paylod[RS_ENC_PAYLOAD_SIZE] = {0};
@@ -230,8 +235,23 @@ int main(int argc, char *argv[]) {
 
 	memcpy(clean_payload, argv[2], arg_len);
 
+    // Set output image title
+    int new_len = strlen(argv[1]) + 3;
+	char *new_title = (char *)malloc(new_len);
+
+	if (!new_title) {
+		printf("Error: Memory allocation for image title failed!\n");
+		return 1;
+	}
+
+	new_title[0] = 'F';
+	new_title[1] = '_';
+	strcpy(&new_title[2], argv[1]);
+
+    // Extract coefficients from JPEG
     JpegMatrixState state = extract_coefficients(argv[1]);
 
+    // Find maximum number of coordinates
     int max_possible_coords = 0;
     for (int comp = 0; comp < state.cinfo.num_components; comp++) {
         jpeg_component_info *compptr = state.cinfo.comp_info + comp;
@@ -240,6 +260,7 @@ int main(int argc, char *argv[]) {
         max_possible_coords += (total_blocks * 63); // 63 valid AC indices per block
     }
 
+    // Scatter the blocks and inject the payload
     DctCoord *coord_list = (DctCoord *)malloc(max_possible_coords * sizeof(DctCoord));
     int valid_count = extract_valid_coords(&state, coord_list);
     scatter(coord_list, valid_count, secret_key);
@@ -247,6 +268,7 @@ int main(int argc, char *argv[]) {
 
     save_image(&state, "stego.jpg");
 
+    // Clean up
     jpeg_finish_decompress(&state.cinfo);
     jpeg_destroy_decompress(&state.cinfo);
     fclose(state.file);
