@@ -92,7 +92,7 @@ int extract_valid_coords(JpegMatrixState *state, DctCoord *coord_list) {
     for (int comp = 0; comp < state->cinfo.num_components; comp++) {
         jpeg_component_info *compptr = state->cinfo.comp_info + comp;
 
-        for (int row = 0; row < compptr->height_in_blocks; row++) {
+        for (unsigned int row = 0; row < compptr->height_in_blocks; row++) {
 
             JBLOCKARRAY buffer = (state->cinfo.mem->access_virt_barray)(
                 (j_common_ptr) &state->cinfo,
@@ -100,7 +100,7 @@ int extract_valid_coords(JpegMatrixState *state, DctCoord *coord_list) {
                 row, 1, TRUE
             );
 
-            for (int col = 0; col < compptr->width_in_blocks; col++) {
+            for (unsigned int col = 0; col < compptr->width_in_blocks; col++) {
                 JCOEF *block = buffer[0][col];
 
                 for (int k = 1; k < 64; k++) {
