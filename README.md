@@ -18,4 +18,5 @@ Host image interference will drown out your signal if the natural frequency of t
 **4. Forward Error Correction (Reed-Solomon)**:
 Bit flips are inevitable in the wild. If you aren't using error correction, you are just waiting for your data to silently corrupt. We use libfec to wrap the 64-byte payload in 32 bytes of Reed-Solomon parity. If the image takes damage, the Medbay heals the extracted byte array before it ever reaches user-space.
 
+## instalation 
 
