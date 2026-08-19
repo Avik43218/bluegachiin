@@ -2,7 +2,7 @@ CC				:= gcc
 CFLAGS			:= -O2 -g --coverage -pg -Wall -Wextra -std=c11 -D_XOPEN_SOURCE=500 -Iinclude -I/usr/local/include -I/usr/include
 LDFLAGS			:= --coverage -pg -L/usr/local/lib -L/usr/lib
 LDLIBS_PNG		:= -Wl,-Bdynamic -lm -lfec
-LDLIBS_JPG		:= -Wl,-Bdynamic -lfec -ljpeg
+LDLIBS_JPG		:= -Wl,-Bdynamic -ljpeg -lfec
 
 SRC_DIR			:= src
 BIN_DIR			:= bin
