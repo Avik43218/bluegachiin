@@ -8,7 +8,7 @@
 int main(int argc, char *argv[]) {
 
 	if (argc < 2) {
-		fprintf(stderr, "Usage: %s --encode|--decode\n", argv[0]);
+		fprintf(stderr, "Usage: ./bg --encode|--decode --png|--jpg\n");
 		return 1;
 	}
 
@@ -33,12 +33,21 @@ int main(int argc, char *argv[]) {
 		char *bin_dir = dirname(exe_path);
 
 		if (strcmp(argv[1], "--encode") == 0) {
-			snprintf(target_bin, sizeof(target_bin), "%s/pe", bin_dir);
-			// Branch logic goes here
+			if (strcmp(srgv[2], "--png") == 0) {
+				snprintf(target_bin, sizeof(target_bin), "%s/pe", bin_dir);
+			}
+
+			else if (strcmp(argv[2], "--jpg") == 0) {
+				snprintf(target_bin, sizeof(target_bin), "%s/je", bin_dir);
+			}
 		}
 		else if (strcmp(argv[1], "--decode") == 0) {
-			snprintf(target_bin, sizeof(target_bin), "%s/pd", bin_dir);
-			// And here too
+			if (strcmp(argv[2], "--png") == 0) {
+				snprintf(target_bin, sizeof(target_bin), "%s/pd", bin_dir);
+			}
+			else if (strcmp(argv[2], "--jpg") == 0) {
+				snprintf(target_bin, sizeof(target_bin), "%s/jd", bin_dir);
+			}
 		}
 		else {
 			fprintf(stderr, "Unknown command: %s\n", argv[1]);
