@@ -31,6 +31,6 @@ $(BIN_DIR)/jd:	$(SRC_DIR)/jpeg/jpeg-decoder.c
 	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS) $(LDLIBS_JPG)
 
 clean:
-	rm -rf $(BIN_DIR) $(ASSET_DIR)/F_*.png $(ASSET_DIR)/F_*.jpg ./gmon.out
+	rm -rf $(BIN_DIR) $(ASSET_DIR)/F_*.png $(ASSET_DIR)/F_*.jpg F_*.jpg F_*.png ./gmon.out
 
 .PHONY: all clean
