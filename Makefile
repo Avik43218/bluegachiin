@@ -8,7 +8,7 @@ SRC_DIR			:= src
 BIN_DIR			:= bin
 ASSET_DIR		:= assets
 
-all:			$(BIN_DIR)/bg $(BIN_DIR)/pe $(BIN_DIR)/pd $(BIN_DIR)/je
+all:			$(BIN_DIR)/bg $(BIN_DIR)/pe $(BIN_DIR)/pd $(BIN_DIR)/je $(BIN_DIR)/jd
 
 $(BIN_DIR)/bg:		$(SRC_DIR)/main.c
 	@mkdir -p $(BIN_DIR)
@@ -23,6 +23,10 @@ $(BIN_DIR)/pd:	$(SRC_DIR)/png/png-decoder.c
 	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS) $(LDLIBS_PNG)
 
 $(BIN_DIR)/je:	$(SRC_DIR)/jpeg/jpeg-encoder.c
+	@mkdir -p $(BIN_DIR)
+	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS) $(LDLIBS_JPG)
+
+$(BIN_DIR)/jd:	$(SRC_DIR)/jpeg/jpeg-decoder.c
 	@mkdir -p $(BIN_DIR)
 	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS) $(LDLIBS_JPG)
 

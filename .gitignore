@@ -19,6 +19,9 @@ compile.sh
 
 # Generated artifacts
 assets/F_*.png
+assets/F_*.jpg
+F_*.jpg
+F_*.png
 
 # Objects & Binaries
 bin/

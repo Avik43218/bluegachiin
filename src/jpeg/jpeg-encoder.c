@@ -4,7 +4,6 @@
 #include <fec.h>
 #include <string.h>
 
-// #include "bg_headers.h"
 #include "config.h"
 
 typedef struct {
@@ -85,47 +84,31 @@ void scatter(DctCoord *coord_list, int total_valid, unsigned int secret_key) {
     }
 }
 
-// STEP 3
-int extract_valid_coords(JpegMatrixState *state, DctCoord *coord_list) {
-
-    int valid_count = 0;
-
+int extract_valid_coords(JpegMatrixState *state, DctCoord *hit_list) {
+    int total_count = 0;
+    
     for (int comp = 0; comp < state->cinfo.num_components; comp++) {
         jpeg_component_info *compptr = state->cinfo.comp_info + comp;
-
-        for (unsigned int row = 0; row < compptr->height_in_blocks; row++) {
-
-            JBLOCKARRAY buffer = (state->cinfo.mem->access_virt_barray)(
-                (j_common_ptr) &state->cinfo,
-                state->coeffs_array[comp],
-                row, 1, TRUE
-            );
-
-            for (unsigned int col = 0; col < compptr->width_in_blocks; col++) {
-                JCOEF *block = buffer[0][col];
-
+        
+        for (JDIMENSION row = 0; row < compptr->height_in_blocks; row++) {
+            for (JDIMENSION col = 0; col < compptr->width_in_blocks; col++) {
+                // Still skip k=0 (DC coefficient), but grab ALL 63 ACs!
                 for (int k = 1; k < 64; k++) {
-
-                    if (block[k] != 0) {
-                        coord_list[valid_count].comp = comp;
-                        coord_list[valid_count].col = col;
-                        coord_list[valid_count].row = row;
-                        coord_list[valid_count].k = k;
-
-                        valid_count++;
-                    }
+                    hit_list[total_count].comp = comp;
+                    hit_list[total_count].row = row;
+                    hit_list[total_count].col = col;
+                    hit_list[total_count].k = k;
+                    total_count++;
                 }
             }
         }
     }
-
-    printf("Scan complete! %d payload injection sites available!\n", valid_count);
-
-    return valid_count;
+    
+    return total_count;
 }
 
 // STEP 5
-void inject_payload(JpegMatrixState *state, DctCoord *coord_list, int valid_count, unsigned char *payload, int total_bits) {
+void inject_payload(JpegMatrixState *state, DctCoord *coord_list, int valid_count, unsigned char *rs_payload, int total_bits) {
 
     int coord_idx = 0;
     int payload_idx = 0;
@@ -149,7 +132,7 @@ void inject_payload(JpegMatrixState *state, DctCoord *coord_list, int valid_coun
             break;
         }
 
-        int m = get_bits(payload, payload_idx);
+        int m = get_bits(rs_payload, payload_idx);
         int b[3];
         JCOEF *blocks[3];
 
@@ -224,9 +207,15 @@ int main(int argc, char *argv[]) {
     }
 
     // Initialize variables
-    unsigned int secret_key = (unsigned int)strtoul(argv[4], NULL, 10);
+    char * endptr;
+    unsigned int secret_key = (unsigned int)strtoul(argv[3], &endptr, 10);
 
-    unsigned char rs_paylod[RS_ENC_PAYLOAD_SIZE] = {0};
+    if (argv[3] == endptr) {
+        printf("Provide a valid integer!\n");
+        exit(1);
+    }
+
+    unsigned char rs_payload[RS_ENC_PAYLOAD_SIZE] = {0};
     unsigned char clean_payload[PAYLOAD_SIZE] = {0};
 	int arg_len = strlen(argv[2]);
 
@@ -261,12 +250,13 @@ int main(int argc, char *argv[]) {
     }
 
     // Scatter the blocks and inject the payload
+    rs_encode_payload(clean_payload, rs_payload);
     DctCoord *coord_list = (DctCoord *)malloc(max_possible_coords * sizeof(DctCoord));
     int valid_count = extract_valid_coords(&state, coord_list);
     scatter(coord_list, valid_count, secret_key);
-    inject_payload(&state, coord_list, valid_count, rs_paylod, RS_ENC_PAYLOAD_SIZE * 8);
+    inject_payload(&state, coord_list, valid_count, rs_payload, RS_ENC_PAYLOAD_SIZE * 8);
 
-    save_image(&state, "stego.jpg");
+    save_image(&state, new_title);
 
     // Clean up
     jpeg_finish_decompress(&state.cinfo);

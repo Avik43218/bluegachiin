@@ -10,11 +10,17 @@ if [[ "$1" == "-e" ]]; then
 
 	cp "$TARGET_IMG_PATH" .
 	IMG_TITLE=$(basename "$TARGET_IMG_PATH")
+	IMG_EXT=${IMG_TITLE##*.}
 
 	make
-	./bin/bg --encode "$IMG_TITLE" "$PAYLOAD" "$BG_SECRET_KEY"
 
-	mv F_*.png "$DEST_DIR"
+	if [[ "$IMG_EXT" == "png" ]]; then
+		./bin/bg --encode --png "$IMG_TITLE" "$PAYLOAD" "$BG_SECRET_KEY"
+	elif [[ "$IMG_EXT" == "jpg" ]]; then
+		./bin/bg --encode --jpg "$IMG_TITLE" "$PAYLOAD" "$BG_SECRET_KEY"
+	fi
+
+	mv "F_*.png" "$DEST_DIR"
 	rm "$IMG_TITLE"
 
 elif [[ "$1" == "-d" ]]; then
@@ -23,13 +29,15 @@ elif [[ "$1" == "-d" ]]; then
 
 	cp "$TARGET_IMG_PATH" .
 	IMG_TITLE=$(basename "$TARGET_IMG_PATH")
+	IMG_EXT=${IMG_TITLE##*.}
 
 	make
-	./bin/bg --decode "$IMG_TITLE" "$BG_SECRET_KEY"
+	if [[ "$IMG_EXT" == "png" ]]; then
+		./bin/bg --decode --png "$IMG_TITLE" "$BG_SECRET_KEY"
+	elif [[ "$IMG_EXT" == "jpg" ]]; then
+		./bin/bg --decode --jpg "$IMG_TITLE" "$BG_SECRET_KEY"
+	fi
 
 	rm "$IMG_TITLE"
 
 fi
-
-
-
