@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <math.h>
 #include <fec.h>
+#include <getopt.h>
+#include <stdbool.h>
 
 void init_dsss(unsigned int secret_key) {
 	srand(secret_key);
@@ -89,60 +91,129 @@ void decode_rs_dsss(double *data, char message[BUFFER_SIZE], int width, unsigned
 }
 
 int main(int argc, char *argv[]) {
+    char *input_path = NULL;
+    char *output_path = NULL;
+    char *key_str = NULL;
+    bool verbose = false;
 
-	if (argc != 3) {
-		printf("Error: usage is: ./%s <IMAGE_TITLE> <SECRET_KEY>\n", argv[0]);
-		return 1;
-	}
+    static struct option long_options[] = {
+        {"input",   required_argument, 0, 'i'},
+        {"output",  required_argument, 0, 'o'},
+        {"key",     required_argument, 0, 'k'},
+        {"verbose", no_argument,       0, 'v'},
+        {0, 0, 0, 0}
+    };
 
-	// Initialize variables
-	int width, height, channels;
-	unsigned int secret_key = (unsigned int)strtoul(argv[2], NULL, 10);
+    int opt;
+    while ((opt = getopt_long(argc, argv, "i:o:k:v", long_options, NULL)) != -1) {
+        switch (opt) {
+            case 'i': input_path = optarg; break;
+            case 'o': output_path = optarg; break;
+            case 'k': key_str = optarg; break;
+            case 'v': verbose = true; break;
+            default:
+                fprintf(stderr, "Error: Invalid argument passed to PNG decoder.\n");
+                return 1;
+        }
+    }
 
-	// Open image and extract blue channel
-	unsigned char *raw_pixels = stbi_load(argv[1], &width, &height, &channels, 3);
-	
-	if (raw_pixels == NULL) {
-		printf("Error: Image is missing\n");
-		return 1;
-	}
-	
-	double *blue = (double *)malloc(width * height * sizeof(double));
-	for (int i = 0; i < width * height; i++) {
-		blue[i] = (double)raw_pixels[i * 3 + 2];
-	}
+    // --- Validations ---
+    if (!input_path) {
+        fprintf(stderr, "Error: Missing input image path (-i).\n");
+        return 1;
+    }
+    if (!key_str) {
+        fprintf(stderr, "Error: Missing secret PRNG key (-k).\n");
+        return 1;
+    }
 
-	stbi_image_free(raw_pixels);
+    // Parse secret key as unsigned int with strict termination check
+    char *endptr = NULL;
+    unsigned int secret_key = (unsigned int)strtoul(key_str, &endptr, 10);
+    if (*endptr != '\0') {
+        fprintf(stderr, "Error: Provide a valid integer for the secret key!\n");
+        return 1;
+    }
 
-	// Apply Haar on the rows
-	for (int i = 0; i < height; i++) {
-		haar_1d(&blue[i * width], width);
-	}
+    if (verbose) {
+        printf("[PNG-DEC] Reading carrier: %s\n", input_path);
+        printf("[PNG-DEC] PRNG Seed:       %u\n", secret_key);
+        if (output_path) {
+            printf("[PNG-DEC] Output dest:     %s\n", output_path);
+        }
+    }
 
-	// Apply Haar on the columns
-	double *col = (double *)malloc(height * sizeof(double));
-	for (int i = 0; i < width; i++) {
-		for (int j = 0; j < height; j++) {
-			col[j] = blue[j * width + i];
-		}
+    // Initialize variables
+    int width, height, channels;
 
-		haar_1d(col, height);
+    // Open image and extract blue channel
+    unsigned char *raw_pixels = stbi_load(input_path, &width, &height, &channels, 3);
+    if (raw_pixels == NULL) {
+        fprintf(stderr, "Error: Image is missing or failed to load: %s\n", input_path);
+        return 1;
+    }
 
-		for (int j = 0; j < height; j++) {
-			blue[j * width + i] = col[j];
-		}
-	}
+    double *blue = (double *)malloc(width * height * sizeof(double));
+    if (!blue) {
+        fprintf(stderr, "Error: Memory allocation failed for blue channel buffer!\n");
+        stbi_image_free(raw_pixels);
+        return 1;
+    }
 
-	free(col);
-	
-	// Extract RS-DSSS payload and decode
-	char message[BUFFER_SIZE];
-	decode_rs_dsss(blue, message, width, secret_key);
+    for (int i = 0; i < width * height; i++) {
+        blue[i] = (double)raw_pixels[i * 3 + 2];
+    }
 
-	printf("Secret Message: %s\n", message);
+    stbi_image_free(raw_pixels);
 
-	free(blue);
+    // Apply Haar on the rows
+    for (int i = 0; i < height; i++) {
+        haar_1d(&blue[i * width], width);
+    }
 
-	return 0;
+    // Apply Haar on the columns
+    double *col = (double *)malloc(height * sizeof(double));
+    if (!col) {
+        fprintf(stderr, "Error: Memory allocation failed for Haar column buffer!\n");
+        free(blue);
+        return 1;
+    }
+
+    for (int i = 0; i < width; i++) {
+        for (int j = 0; j < height; j++) {
+            col[j] = blue[j * width + i];
+        }
+
+        haar_1d(col, height);
+
+        for (int j = 0; j < height; j++) {
+            blue[j * width + i] = col[j];
+        }
+    }
+
+    free(col);
+
+    // Extract RS-DSSS payload and decode
+    char message[BUFFER_SIZE];
+    decode_rs_dsss(blue, message, width, secret_key);
+
+    // Output handling: write to disk if -o is specified, else print to stdout
+    if (output_path) {
+        FILE *out_fp = fopen(output_path, "wb");
+        if (!out_fp) {
+            perror("Error opening output destination file");
+        } else {
+            fputs(message, out_fp);
+            fclose(out_fp);
+            if (verbose) {
+                printf("[PNG-DEC] Successfully saved message to %s\n", output_path);
+            }
+        }
+    } else {
+        printf("Secret Message: %s\n", message);
+    }
+
+    free(blue);
+
+    return 0;
 }
-

@@ -3,6 +3,8 @@
 #include <jpeglib.h>
 #include <string.h>
 #include <fec.h>
+#include <getopt.h>
+#include <stdbool.h>
 
 #include "config.h"
 
@@ -146,28 +148,80 @@ void extract_payload(JpegMatrixState *state, DctCoord *coord_list, int total_coo
 }
 
 int main(int argc, char *argv[]) {
+    char *input_path = NULL;
+    char *output_path = NULL;
+    char *key_str = NULL;
+    bool verbose = false;
 
-    if (argc != 3) {
-        fprintf(stderr, "Error: usage is: ./jd <FILENAME> <SECRET_KEY>");
+    static struct option long_options[] = {
+        {"input",   required_argument, 0, 'i'},
+        {"output",  required_argument, 0, 'o'},
+        {"key",     required_argument, 0, 'k'},
+        {"verbose", no_argument,       0, 'v'},
+        {0, 0, 0, 0}
+    };
+
+    int opt;
+    while ((opt = getopt_long(argc, argv, "i:o:k:v", long_options, NULL)) != -1) {
+        switch (opt) {
+            case 'i': input_path = optarg; break;
+            case 'o': output_path = optarg; break;
+            case 'k': key_str = optarg; break;
+            case 'v': verbose = true; break;
+            default:
+                fprintf(stderr, "Error: Invalid argument passed to JPEG decoder.\n");
+                return 1;
+        }
+    }
+
+    // --- Validations ---
+    if (!input_path) {
+        fprintf(stderr, "Error: Missing input image path (-i).\n");
+        return 1;
+    }
+    if (!key_str) {
+        fprintf(stderr, "Error: Missing secret PRNG key (-k).\n");
         return 1;
     }
 
+    // Parse secret key as unsigned int
+    char *endptr = NULL;
+    unsigned int secret_key = (unsigned int)strtoul(key_str, &endptr, 10);
+    if (*endptr != '\0') {
+        fprintf(stderr, "Error: Provide a valid integer for the secret key!\n");
+        return 1;
+    }
+
+    if (verbose) {
+        printf("[JPEG-DEC] Reading carrier: %s\n", input_path);
+        printf("[JPEG-DEC] PRNG Seed:       %u\n", secret_key);
+        if (output_path) {
+            printf("[JPEG-DEC] Dump output:     %s\n", output_path);
+        }
+    }
+
     // Initialize variables
-    unsigned int secret_key = (unsigned int)strtoul(argv[2], NULL, 10);
     unsigned char extracted_payload[RS_ENC_PAYLOAD_SIZE];
 
-    JpegMatrixState state = extract_coefficients(argv[1]);
+    JpegMatrixState state = extract_coefficients(input_path);
 
     // Find maximum number of coordinates
     int max_possible_coords = 0;
     for (int comp = 0; comp < state.cinfo.num_components; comp++) {
         jpeg_component_info *compptr = state.cinfo.comp_info + comp;
-        
         int total_blocks = compptr->width_in_blocks * compptr->height_in_blocks;
         max_possible_coords += (total_blocks * 63); // 63 valid AC indices per block
     }
 
     DctCoord *coord_list = (DctCoord *)malloc(max_possible_coords * sizeof(DctCoord));
+    if (!coord_list) {
+        fprintf(stderr, "Error: Failed to allocate memory for coordinate list!\n");
+        jpeg_finish_decompress(&state.cinfo);
+        jpeg_destroy_decompress(&state.cinfo);
+        fclose(state.file);
+        return 1;
+    }
+
     int valid_count = extract_valid_coords(&state, coord_list);
     scatter(coord_list, valid_count, secret_key);
     extract_payload(&state, coord_list, valid_count, extracted_payload, RS_ENC_PAYLOAD_SIZE * 8);
@@ -175,8 +229,23 @@ int main(int argc, char *argv[]) {
     char message[BUFFER_SIZE];
     decode_message(extracted_payload, message);
 
-    printf("\nMessage: %s\n", message);
+    // Output handling: write to file if -o provided, else print to stdout
+    if (output_path) {
+        FILE *out_fp = fopen(output_path, "wb");
+        if (!out_fp) {
+            perror("Error opening output destination file");
+        } else {
+            fputs(message, out_fp);
+            fclose(out_fp);
+            if (verbose) {
+                printf("[JPEG-DEC] Successfully written message to %s\n", output_path);
+            }
+        }
+    } else {
+        printf("\nMessage: %s\n", message);
+    }
 
+    // Clean up
     jpeg_finish_decompress(&state.cinfo);
     jpeg_destroy_decompress(&state.cinfo);
     fclose(state.file);

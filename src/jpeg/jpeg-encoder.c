@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <fec.h>
 #include <string.h>
+#include <getopt.h>
+#include <stdbool.h>
 
 #include "config.h"
 
@@ -200,58 +202,128 @@ int save_image(JpegMatrixState *state, const char *out_fname) {
 }
 
 int main(int argc, char *argv[]) {
+    char *input_path = NULL;
+    char *output_path = NULL;
+    char *key_str = NULL;
+    char *msg_str = NULL;
+    char *sig_file = NULL;
+    bool verbose = false;
 
-    if (argc != 4) {
-        fprintf(stderr, "Error: Usage: ./jpeg-encoder <IMAGE_NAME> <MESSAGE> <SECRET_KEY>\n");
+    static struct option long_options[] = {
+        {"input",    required_argument, 0, 'i'},
+        {"output",   required_argument, 0, 'o'},
+        {"key",      required_argument, 0, 'k'},
+        {"sig",      required_argument, 0, 's'},
+        {"sig-file", required_argument, 0, 'f'},
+        {"verbose",  no_argument,       0, 'v'},
+        {0, 0, 0, 0}
+    };
+
+    int opt;
+    while ((opt = getopt_long(argc, argv, "i:o:k:s:f:v", long_options, NULL)) != -1) {
+        switch (opt) {
+            case 'i': input_path = optarg; break;
+            case 'o': output_path = optarg; break;
+            case 'k': key_str = optarg; break;
+            case 's': msg_str = optarg; break;
+            case 'f': sig_file = optarg; break;
+            case 'v': verbose = true; break;
+            default:
+                fprintf(stderr, "Error: Invalid argument passed to JPEG encoder.\n");
+                return 1;
+        }
+    }
+
+    // --- Validations ---
+    if (!input_path) {
+        fprintf(stderr, "Error: Missing input image path (-i).\n");
+        return 1;
+    }
+    if (!key_str) {
+        fprintf(stderr, "Error: Missing secret PRNG key (-k).\n");
+        return 1;
+    }
+    if (!msg_str && !sig_file) {
+        fprintf(stderr, "Error: Provide payload string (-s) or payload file (-f).\n");
         return 1;
     }
 
-    // Initialize variables
-    char * endptr;
-    unsigned int secret_key = (unsigned int)strtoul(argv[3], &endptr, 10);
-
-    if (argv[3] == endptr) {
-        printf("Provide a valid integer!\n");
-        exit(1);
+    // Parse secret key as unsigned int
+    char *endptr = NULL;
+    unsigned int secret_key = (unsigned int)strtoul(key_str, &endptr, 10);
+    if (*endptr != '\0') {
+        fprintf(stderr, "Error: Provide a valid integer for the secret key!\n");
+        return 1;
     }
 
-    unsigned char rs_payload[RS_ENC_PAYLOAD_SIZE] = {0};
+    // Populate clean payload buffer (PAYLOAD_SIZE bytes)
     unsigned char clean_payload[PAYLOAD_SIZE] = {0};
-	int arg_len = strlen(argv[2]);
 
-	if (arg_len > PAYLOAD_SIZE)
-		arg_len = PAYLOAD_SIZE;
+    if (sig_file) {
+        FILE *fp = fopen(sig_file, "rb");
+        if (!fp) {
+            perror("Error opening signature file");
+            return 1;
+        }
+        size_t read_bytes = fread(clean_payload, 1, PAYLOAD_SIZE, fp);
+        fclose(fp);
+        if (read_bytes == 0) {
+            fprintf(stderr, "Error: Signature file is empty.\n");
+            return 1;
+        }
+    } else {
+        int arg_len = strlen(msg_str);
+        if (arg_len > PAYLOAD_SIZE) {
+            arg_len = PAYLOAD_SIZE;
+        }
+        memcpy(clean_payload, msg_str, arg_len);
+    }
 
-	memcpy(clean_payload, argv[2], arg_len);
+    // Determine output title: use -o if provided, otherwise default to "F_<input>"
+    char *new_title = NULL;
+    bool allocated_title = false;
 
-    // Set output image title
-    int new_len = strlen(argv[1]) + 3;
-	char *new_title = (char *)malloc(new_len);
+    if (output_path) {
+        new_title = output_path;
+    } else {
+        int new_len = strlen(input_path) + 3;
+        new_title = (char *)malloc(new_len);
+        if (!new_title) {
+            fprintf(stderr, "Error: Memory allocation for image title failed!\n");
+            return 1;
+        }
+        snprintf(new_title, new_len, "F_%s", input_path);
+        allocated_title = true;
+    }
 
-	if (!new_title) {
-		printf("Error: Memory allocation for image title failed!\n");
-		return 1;
-	}
-
-	new_title[0] = 'F';
-	new_title[1] = '_';
-	strcpy(&new_title[2], argv[1]);
+    if (verbose) {
+        printf("[JPEG-ENC] Input:   %s\n", input_path);
+        printf("[JPEG-ENC] Output:  %s\n", new_title);
+        printf("[JPEG-ENC] Seed:    %u\n", secret_key);
+    }
 
     // Extract coefficients from JPEG
-    JpegMatrixState state = extract_coefficients(argv[1]);
+    JpegMatrixState state = extract_coefficients(input_path);
 
     // Find maximum number of coordinates
     int max_possible_coords = 0;
     for (int comp = 0; comp < state.cinfo.num_components; comp++) {
         jpeg_component_info *compptr = state.cinfo.comp_info + comp;
-        
         int total_blocks = compptr->width_in_blocks * compptr->height_in_blocks;
         max_possible_coords += (total_blocks * 63); // 63 valid AC indices per block
     }
 
     // Scatter the blocks and inject the payload
+    unsigned char rs_payload[RS_ENC_PAYLOAD_SIZE] = {0};
     rs_encode_payload(clean_payload, rs_payload);
+
     DctCoord *coord_list = (DctCoord *)malloc(max_possible_coords * sizeof(DctCoord));
+    if (!coord_list) {
+        fprintf(stderr, "Error: Failed to allocate memory for coordinate list!\n");
+        if (allocated_title) free(new_title);
+        return 1;
+    }
+
     int valid_count = extract_valid_coords(&state, coord_list);
     scatter(coord_list, valid_count, secret_key);
     inject_payload(&state, coord_list, valid_count, rs_payload, RS_ENC_PAYLOAD_SIZE * 8);
@@ -264,6 +336,9 @@ int main(int argc, char *argv[]) {
     fclose(state.file);
 
     free(coord_list);
+    if (allocated_title) {
+        free(new_title);
+    }
 
     return 0;
 }
